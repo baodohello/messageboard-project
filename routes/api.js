@@ -1,124 +1,105 @@
 'use strict';
 
-const shortid = require('shortid');
 
 const mongoose = require('mongoose');
 
-// Define the Thread schema
+
+const date = new Date()
+
+const replySchema = new mongoose.Schema({
+  text:{type:String},
+  delete_password:{type:String},
+  created_on:{type:Date,default:date},
+  bumped_on:{type:Date,default:date},
+  reported:{type:Boolean,default:false},
+})
+const Reply = mongoose.model("Reply", replySchema)
+
 const threadSchema = new mongoose.Schema({
-  _id: { type: String, default: () => new mongoose.Types.ObjectId().toHexString() }, // Generate a new ObjectId if not provided
   text: { type: String, required: true },
-  created_on: { type: Date, default: Date.now },
-  bumped_on: { type: Date, default: Date.now },
-  reported: { type: Boolean, default: false },
   delete_password: { type: String, required: true },
-  replies: [{ type: mongoose.Schema.Types.Mixed }], // You can define a separate schema for replies if needed
-  replycount: { type: Number, default: 0 }
+  created_on: { type: Date, default: date },
+  bumped_on: { type: Date, default: date },
+  reported: { type: Boolean, default: false },
+  replies: { type: [replySchema] }, // You can define a separate schema for replies if needed
 });
-// Define the schema
+const Thread = mongoose.model('Thread', threadSchema);
+
 const boardSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  threads: [threadSchema] // Embed the Thread schema here
+  threads:{type:[threadSchema]} // Embed the Thread schema here
 
 });
-
-// Create the model
 const Board = mongoose.model('Board', boardSchema);
 
 
 
 
-let demoGeneralBoardData = [
-{
-  _id:'669fd5258492370013aec959',
-  text:'5',
-  created_on: '2024-07-23T16:07:01.438Z',
-  bumped_on:'2024-07-23T16:07:01.438Z',
-  reported: false,
-  delete_password:'5',
-  replies:[],
-  replycount:0
-
-
-}
-]
 module.exports = function (app) {
   
   app.route('/api/threads/:board')
   .get(async function(req,res){
-  
-    console.log(req.params)
-    console.log(req.query)
-    console.log(req.body)
-
-    try{
-    const {board} = req.params
-
-      let result = await Board.findOne({ name: board });
-      
-      if (!result) {
-      console.log('Board not found, creating new ...');
-
-        result = new Board({ name: board });
-      await result.save();
-      console.log('Board created successfully:');
-
-      }
-
-    const {threads} = await Board.findOne({ name: board });
-    res.send(threads)
-
-    } 
-    catch(e){
-      console.log(e)
-
-    }
-
-    
-    })
+  const {board} = req.params
+  let boardData = await Board.findOne({ name: board });
+  if (!boardData) {
+  boardData = createBoard(board)
+  }
+  res.json(boardData.threads)
+})
   .post(async function(req,res){
-    console.log(req.params)
-    console.log(req.query)
-    console.log(req.body)
     const {board} = req.params
   const {text,delete_password} = req.body
-
-  let boardData = await Board.findOne({ name: board });
-
-
-  boardData.threads.push({
-    _id:shortid.generate(),
-  text: text,
-  created_on: new Date().toISOString(),
-  bumped_on:new Date().toISOString(),
-  reported: false,
-  delete_password:delete_password,
-  replies:[],
-  replycount:0
+   
+  const newThread = new Thread({
+    text: text,
+    delete_password:delete_password,
+    replies:[]
   })
-  await boardData.save();
-  console.log('Thread added successfully:');
-  res.redirect(`/b/${board}/`);
+  console.log("New thread created")
+  let boardData =await Board.findOne({name: board})
+  if(!boardData){
+    boardData = new Board({name:board,threads:[]})
+    console.log("New board created")
+ 
+  }
+  boardData.threads.push(newThread)
 
-
+  await boardData.save()
+  res.json(newThread)
   })
+
   .put(function(req,res){
 
-    console.log(req.params)
-    console.log(req.query)
-    console.log(req.body)
   
     res.send({})
   
-    });
-    
+    })
+
+  .delete(function(req,res){
+    const {board} = req.params
+    const {thread_id, delete_password} = req.body
+
+    let threadData = Thread.find({_id:thread_id})
+    if(!threadData){
+      console.log("cannot find thread")
+    }
+
+  })
+  
+  
   app.route('/api/replies/:board')
-  .get(function(req,res){
-    console.log(req.params)
-    console.log(req.query)
-    console.log(req.body)
-  
-    res.send({})
+  .post(async function(req,res){
+    const {board,thread_id,text,delete_password}= req.body
+    
+    
+  const newReply = new Reply({
+  text:text,
+  delete_password:delete_password,
+  })
+
+
+    res.json({})
     });
 
 };
+
