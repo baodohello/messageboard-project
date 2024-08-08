@@ -8,7 +8,40 @@ const apiRoutes         = require('./routes/api.js');
 const fccTestingRoutes  = require('./routes/fcctesting.js');
 const runner            = require('./test-runner');
 
+const mongoose = require('mongoose');
+const helmet = require('helmet')
+
 const app = express();
+
+// Connect to MongoDB
+mongoose.connect(process.env.DB, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
+
+const db = mongoose.connection;
+
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', () => {
+  console.log('Connected to MongoDB');
+});
+
+
+
+
+
+
+app.use(helmet({
+  derivatives:{
+    frameguard:{action:'deny'},
+  }
+}))
+
+
+
+
+app.use(helmet.referrerPolicy({ policy: 'same-origin' }));
+
 
 app.use('/public', express.static(process.cwd() + '/public'));
 
